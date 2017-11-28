@@ -10,16 +10,16 @@ import (
 
 // go test -cpu=4 -run=XXX -bench=BenchmarkRegularParallel -benchtime=5s
 func BenchmarkRegularParallel(b *testing.B) {
-	rm := NewRegularIntMap()
+	rm := NewRegularMap()
 	values := populateMap(b.N, rm)
 
 	// Holds our final results, to prevent compiler optimizations.
-	globalResultChan = make(chan int, 64)
+	globalResultChan = make(chan interface{}, 64)
 	//b.SetParallelism(1)
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		currentResult := 0
+		var currentResult interface{}
 		i := 0
 		for pb.Next() {
 			currentResult, _ = rm.Load(values[i])
@@ -35,16 +35,15 @@ func BenchmarkSyncParallel(b *testing.B) {
 	values := populateSyncMap(b.N, &sm)
 
 	// Holds our final results, to prevent compiler optimizations.
-	globalResultChan = make(chan int, 64)
+	globalResultChan = make(chan interface{}, 64)
 	//b.SetParallelism(1)
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		currentResult := 0
+		var currentResult interface{}
 		i := 0
 		for pb.Next() {
-			r, _ := sm.Load(values[i])
-			currentResult = r.(int)
+			currentResult, _ = sm.Load(values[i])
 			i++
 		}
 		globalResultChan <- currentResult

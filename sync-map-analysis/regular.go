@@ -4,61 +4,31 @@ import (
 	"sync"
 )
 
-type RegularStringMap struct {
+type RegularMap struct {
 	sync.RWMutex
-	internal map[string]string
+	internal map[interface{}]interface{}
 }
 
-func NewRegularStringMap() *RegularStringMap {
-	return &RegularStringMap{
-		internal: make(map[string]string),
+func NewRegularMap() *RegularMap {
+	return &RegularMap{
+		internal: make(map[interface{}]interface{}),
 	}
 }
 
-func (rm *RegularStringMap) Load(key string) (value string, ok bool) {
+func (rm *RegularMap) Load(key interface{}) (value interface{}, ok bool) {
 	rm.RLock()
 	result, ok := rm.internal[key]
 	rm.RUnlock()
 	return result, ok
 }
 
-func (rm *RegularStringMap) Delete(key string) {
+func (rm *RegularMap) Delete(key interface{}) {
 	rm.Lock()
 	delete(rm.internal, key)
 	rm.Unlock()
 }
 
-func (rm *RegularStringMap) Store(key, value string) {
-	rm.Lock()
-	rm.internal[key] = value
-	rm.Unlock()
-}
-
-type RegularIntMap struct {
-	sync.RWMutex
-	internal map[int]int
-}
-
-func NewRegularIntMap() *RegularIntMap {
-	return &RegularIntMap{
-		internal: make(map[int]int),
-	}
-}
-
-func (rm *RegularIntMap) Load(key int) (value int, ok bool) {
-	rm.RLock()
-	result, ok := rm.internal[key]
-	rm.RUnlock()
-	return result, ok
-}
-
-func (rm *RegularIntMap) Delete(key int) {
-	rm.Lock()
-	delete(rm.internal, key)
-	rm.Unlock()
-}
-
-func (rm *RegularIntMap) Store(key, value int) {
+func (rm *RegularMap) Store(key, value interface{}) {
 	rm.Lock()
 	rm.internal[key] = value
 	rm.Unlock()

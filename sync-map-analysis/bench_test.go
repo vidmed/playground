@@ -7,8 +7,7 @@ import (
 
 // Used to prevent compiler optimizations to ensure no dead code elimination.
 // These ensure our Load functions aren't eliminated because we capture the result.
-var globalResult int
-var globalResultChan = make(chan int, 100)
+var globalResultChan = make(chan interface{}, 100)
 
 func nrand(n int) []int {
 	i := make([]int, n)
@@ -18,7 +17,7 @@ func nrand(n int) []int {
 	return i
 }
 
-func populateMap(n int, rm *RegularIntMap) []int {
+func populateMap(n int, rm *RegularMap) []int {
 	nums := nrand(n)
 	for _, v := range nums {
 		rm.Store(v, v)
