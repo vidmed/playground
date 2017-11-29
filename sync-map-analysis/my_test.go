@@ -3,49 +3,87 @@ package main
 import (
 	"sync"
 	"testing"
+	"runtime"
 )
 
-// Used to prevent compiler optimizations to ensure no dead code elimination.
-// These ensure our Load functions aren't eliminated because we capture the result.
+var global = make(chan string, 10000)
 
-// go test -cpu=4 -run=XXX -bench=BenchmarkRegularParallel -benchtime=5s
-func BenchmarkRegularParallel(b *testing.B) {
-	rm := NewRegularMap()
-	values := populateMap(b.N, rm)
-
-	// Holds our final results, to prevent compiler optimizations.
-	globalResultChan = make(chan interface{}, 64)
-	//b.SetParallelism(1)
-
+func BenchmarkRWMutexMapGetConcurrent(b *testing.B) {
+	m := map[string]string{
+		"foo": "bar",
+	}
+	mu := sync.RWMutex{}
+	wg := new(sync.WaitGroup)
+	workers := runtime.GOMAXPROCS(0)
+	each := b.N / workers
+	wg.Add(workers)
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		var currentResult interface{}
-		i := 0
-		for pb.Next() {
-			currentResult, _ = rm.Load(values[i])
-			i++
-		}
-		globalResultChan <- currentResult
-	})
+	for i := 0; i < workers; i++ {
+		go func() {
+			var tmp string
+			for j := 0; j < each; j++ {
+				mu.RLock()
+				tmp, _ = m["foo"]
+				mu.RUnlock()
+			}
+			global <- tmp
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 // go test -cpu=4 -run=XXX -bench=BenchmarkRegularParallel -benchtime=5s
-func BenchmarkSyncParallel(b *testing.B) {
-	var sm sync.Map
-	values := populateSyncMap(b.N, &sm)
-
-	// Holds our final results, to prevent compiler optimizations.
-	globalResultChan = make(chan interface{}, 64)
-	//b.SetParallelism(1)
-
+func BenchmarkRWMutexMapGetParallel(b *testing.B) {
+	m := map[string]string{
+		"foo": "bar",
+	}
+	mu := sync.RWMutex{}
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		var currentResult interface{}
-		i := 0
+		var tmp string
 		for pb.Next() {
-			currentResult, _ = sm.Load(values[i])
-			i++
+			mu.RLock()
+			tmp, _ = m["foo"]
+			mu.RUnlock()
 		}
-		globalResultChan <- currentResult
+		global <- tmp
+	})
+}
+
+func BenchmarkSyncMapGetConcurrent(b *testing.B) {
+	m := new(sync.Map)
+	m.Store("foo", "bar")
+	wg := new(sync.WaitGroup)
+	workers := runtime.GOMAXPROCS(0)
+	each := b.N / workers
+	wg.Add(workers)
+	b.ResetTimer()
+	for i := 0; i < workers; i++ {
+		go func() {
+			var tmp string
+			for j := 0; j < each; j++ {
+				a, _ := m.Load("foo")
+				tmp = a.(string)
+			}
+			global <- tmp
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+// go test -cpu=4 -run=XXX -bench=BenchmarkRegularParallel -benchtime=5s
+func BenchmarkSyncMapGetParallel(b *testing.B) {
+	m := new(sync.Map)
+	m.Store("foo", "bar")
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		var tmp string
+		for pb.Next() {
+			a, _ := m.Load("foo")
+			tmp = a.(string)
+		}
+		global <- tmp
 	})
 }
